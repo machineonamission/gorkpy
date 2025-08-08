@@ -2,15 +2,13 @@
 name = "gorkpy"
 version = "0.1.0"
 description = ""
-authors = [
-    {name = "Melody",email = "machineonamission@gmail.com"}
-]
-readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "discord-py (>=2.5.2,<3.0.0)",
     "google-genai[aiohttp] (>=1.29.0,<2.0.0)",
 ]
+
+[tool.poetry]
 package-mode = false
 
 
