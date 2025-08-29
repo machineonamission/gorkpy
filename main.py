@@ -9,9 +9,14 @@ with open("geminikey.txt") as f:
 with open("prompt.txt") as f:
     prompt = f.read()
 
+context_blacklist = [
+    510802982590480384,
+    776207273269395496
+]
+
 model_name = 'gemini-2.0-flash'
 
-MIN_MESSAGES = 10
+MIN_MESSAGES = 25
 MAX_MESSAGES = 100
 
 import discord
@@ -58,7 +63,11 @@ def reply_to_string(ref: discord.Message):
 
 
 def get_reply(message: discord.Message):
-    if message.reference and message.reference.resolved and message.type == discord.MessageType.reply:
+    if (message.reference
+            and message.reference.resolved
+            and message.type == discord.MessageType.reply
+            and message.reference.resolved.author.id not in context_blacklist
+    ):
         return message.reference.resolved
     else:
         return None
@@ -121,6 +130,8 @@ async def on_message(message: discord.Message):
             oldest_reply = message
 
             async for cmsg in message.channel.history(before=message, limit=MAX_MESSAGES):
+                if cmsg.author.id in context_blacklist:
+                    continue
                 if reply := get_reply(cmsg):
                     oldest_reply = reply
                 # if we hit the min messages limit,
