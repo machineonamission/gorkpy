@@ -5,6 +5,9 @@ with open("geminikey.txt") as f:
 with open("prompt.txt") as f:
     prompt = f.read()
 
+MIN_MESSAGES = 10
+MAX_MESSAGES = 100
+
 import discord
 
 intents = discord.Intents.default()
@@ -17,15 +20,18 @@ discord_client = discord.Client(intents=intents)
 async def on_ready():
     print(f'We have logged in as {discord_client.user}')
 
+
 message_fetch_cache = {}
 
-async def fetch_and_cache(msg:discord.Message):
+
+async def fetch_and_cache(msg: discord.Message):
     if msg.id in message_fetch_cache:
         return message_fetch_cache[msg.id]
     else:
         res = await msg.fetch()
         message_fetch_cache[msg.id] = res
         return res
+
 
 async def crawl_replies(message: discord.Message):
     replies = []
@@ -39,25 +45,92 @@ async def crawl_replies(message: discord.Message):
     return replies + [message]
 
 
+def reply_to_string(ref: discord.Message):
+    return (f"Replying to:\n"
+            f"{quote(f"@{ref.author.display_name} says:\n"
+                     f"{format_content(ref, False)}")}")
+
+
+def get_reply(message: discord.Message):
+    if message.reference and message.reference.resolved and message.type == discord.MessageType.reply:
+        return message.reference.resolved
+    else:
+        return None
+
+def quote(string: str):
+    return "\n".join("> " + line for line in string.splitlines())
+
+def format_content(message: discord.Message, model: bool):
+    content = message.content
+    # resolve mentions
+    for mention in message.mentions:
+        content = content.replace(mention.mention, f"@{mention.display_name}")
+    for mention in message.channel_mentions:
+        content = content.replace(mention.mention, f"@{mention.name}")
+    for mention in message.role_mentions:
+        content = content.replace(mention.mention, f"@{mention.name}")
+    # quote it to make it clearer for the model
+    if not model:
+        content = quote(content)
+    return content
+
+
+def message_to_string(message: discord.Message, model: bool):
+    replyheader = reply_to_string(reply) + "\n\n" \
+        if (reply := get_reply(message)) \
+        else ""
+
+    userheader = "" if model else f"@{message.author.display_name} says:\n"
+
+    return f"{replyheader}{userheader}{format_content(message, model)}"
+
+
 @discord_client.event
 async def on_message(message: discord.Message):
     if discord_client.user in message.mentions:
         async with message.channel.typing():
-            chain = await crawl_replies(message)
-            parts = []
+            # chain = await crawl_replies(message)
+            # prompt the model to reply
+            parts = [
+                genai.types.Content(
+                    role='model',
+                    parts=[genai.types.Part.from_text(
+                        text=reply_to_string(message))
+                    ],
+                )]
 
-            for cmsg in chain:
+            messages = 0
+
+            def handle_message(cmsg: discord.Message):
+                nonlocal messages
                 model = cmsg.author == discord_client.user
-                content = cmsg.content
-                for mention in cmsg.mentions:
-                    content = content.replace(mention.mention, f"@{mention.display_name}")
-                header = "" if model else f"@{cmsg.author.display_name} says:\n"
                 parts.append(genai.types.Content(
                     role='model' if model else 'user',
-                    parts=[genai.types.Part.from_text(text=f"{header}{content}")]
+                    parts=[genai.types.Part.from_text(text=message_to_string(cmsg, model))],
                 ))
+                messages += 1
+
+            handle_message(message)
+
+            oldest_reply = message
+
+            async for cmsg in message.channel.history(before=message, limit=MAX_MESSAGES):
+                if reply := get_reply(cmsg):
+                    oldest_reply = reply
+                # if we hit the min messages limit,
+                #  and we havent found any older replies we need to continue going back on,
+                #  end the history
+                if messages >= MIN_MESSAGES and cmsg.created_at > oldest_reply.created_at:
+                    break
+                handle_message(cmsg)
 
                 # if cmsg.author == discord_client.user:
+
+            # make it newest last
+            parts.reverse()
+
+            print("PARTS:")
+            print(parts)
 
             response = await gemini_client.aio.models.generate_content(
                 model='gemini-2.0-flash-lite',
