@@ -138,15 +138,7 @@ async def on_message(message: discord.Message):
             print("PARTS:")
             print(parts)
 
-            response = await gemini_client.aio.models.generate_content(
-                model='gemini-2.0-flash-lite',
-                contents=parts,
-                config=genai.types.GenerateContentConfig(
-                    system_instruction=prompt,
-                    temperature=2,
-                    thinking_config=genai.types.ThinkingConfig(thinking_budget=0)
-                ),
-            )
+            response = await generate(message, parts)
             await message.reply(response.text)
 
 
@@ -168,17 +160,18 @@ async def generate_loop():
                     break
                 except ClientError as e:
                     if e.code == 429:
+                        print(e.details)
                         for detail in e.details["error"]["details"]:
                             if detail["@type"] == "type.googleapis.com/google.rpc.RetryInfo":
                                 if detail["retryDelay"][-1] == "s":
                                     delay = int(detail["retryDelay"][:-1])
                                     msg, _ = await asyncio.gather(
                                         message.reply(
-                                            f"gork is a little overloaded right now. give me {round(delay)} seconds to catch up!"),
+                                            f"**gork is a little overloaded right now. give me {round(delay)} seconds to catch up!**"),
                                         asyncio.sleep(delay)
                                     )
                                     await msg.delete()
-                            break
+                                    break
                         else:
                             raise e
                     raise e
@@ -199,6 +192,7 @@ async def generate(message, parts):
 
 
 async def run():
+    asyncio.create_task(generate_loop())
     with open("discordkey.txt") as f:
         dtoken = f.read()
     await discord_client.start(token=dtoken)
