@@ -69,6 +69,7 @@ class ExcludeButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         await set_exclusion(interaction.user, self.level)
+        print(f"Set exclusion level for {interaction.user} to {self.level.name}")
         await interaction.response.send_message(f"Set exclusion level to {self.level.name}", ephemeral=True)
 
 
