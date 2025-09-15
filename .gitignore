@@ -1,3 +1,4 @@
 /target
 *key.txt
 .idea
+exclusions.json
