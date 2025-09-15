@@ -14,11 +14,6 @@ with open("geminikey.txt") as f:
 with open("prompt.txt") as f:
     prompt = f.read()
 
-context_blacklist = [
-    510802982590480384,
-    776207273269395496
-]
-
 
 class Exclusion(enum.IntEnum):
     NONE = 0
