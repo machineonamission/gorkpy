@@ -87,7 +87,7 @@ By default, gork collects {MIN_MESSAGES}-{MAX_MESSAGES} messages of message cont
 Keep in mind gork nor gemini never permanently store any user messages.
 If you would like to opt out of this, there are 4 levels of exclusion:
     **NONE**: Included in automatic channel context **(default)**
-    **CHAIN**: Only included in reply chains
+    **CHAIN**: Only included in reply chains (this was the old default)
     **MENTION**: Only included when you directly mention/reply to gork
     **ALL**: Completely excluded from gork (you can no longer mention gork)
 Your current exclusion level is **{get_exclusion(interaction.user).name}**
