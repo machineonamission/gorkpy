@@ -174,73 +174,77 @@ def message_to_string(message: discord.Message, model: bool, level: Exclusion = 
 
 @discord_client.event
 async def on_message(message: discord.Message):
-    if discord_client.user in message.mentions and get_exclusion(message.author) < Exclusion.ALL:
-        async with message.channel.typing():
-            # chain = await crawl_replies(message)
-            # prompt the model to reply
-            parts = [
-                genai.types.Content(
-                    role='model',
-                    parts=[genai.types.Part.from_text(
-                        text=reply_to_string(message))
-                    ],
-                )]
+    try:
+        if discord_client.user in message.mentions and get_exclusion(message.author) < Exclusion.ALL:
+            async with message.channel.typing():
+                # chain = await crawl_replies(message)
+                # prompt the model to reply
+                parts = [
+                    genai.types.Content(
+                        role='model',
+                        parts=[genai.types.Part.from_text(
+                            text=reply_to_string(message))
+                        ],
+                    )]
 
-            messages = 0
+                messages = 0
 
-            def handle_message(cmsg: discord.Message):
-                nonlocal messages
-                nonlocal chain
-                model = cmsg.author == discord_client.user
-                user_excl = get_exclusion(cmsg.author)  # should always be 0 for model
-                if cmsg == message:
-                    excl_level = Exclusion.MENTION
-                elif cmsg.id in chain:
-                    excl_level = Exclusion.CHAIN
-                else:
-                    excl_level = Exclusion.NONE
+                def handle_message(cmsg: discord.Message):
+                    nonlocal messages
+                    nonlocal chain
+                    model = cmsg.author == discord_client.user
+                    user_excl = get_exclusion(cmsg.author)  # should always be 0 for model
+                    if cmsg == message:
+                        excl_level = Exclusion.MENTION
+                    elif cmsg.id in chain:
+                        excl_level = Exclusion.CHAIN
+                    else:
+                        excl_level = Exclusion.NONE
 
-                if user_excl <= excl_level:
-                    parts.append(genai.types.Content(
-                        role='model' if model else 'user',
-                        parts=[genai.types.Part.from_text(text=message_to_string(cmsg, model, excl_level))],
-                    ))
-                    messages += 1
-                else:
-                    print(f"Excluded message {cmsg.author} says {cmsg.content}")
+                    if user_excl <= excl_level:
+                        parts.append(genai.types.Content(
+                            role='model' if model else 'user',
+                            parts=[genai.types.Part.from_text(text=message_to_string(cmsg, model, excl_level))],
+                        ))
+                        messages += 1
+                    else:
+                        print(f"Excluded message {cmsg.author} says {cmsg.content}")
 
-            chain = [message.id]
+                chain = [message.id]
 
-            if reply := get_reply(message):
-                chain.append(reply.id)
+                if reply := get_reply(message):
+                    chain.append(reply.id)
 
-            handle_message(message)
-            oldest_reply = message
+                handle_message(message)
+                oldest_reply = message
 
-            async for cmsg in message.channel.history(before=message, limit=MAX_MESSAGES):
-                in_chain = cmsg.id in chain
-                if reply := get_reply(cmsg, Exclusion.CHAIN if in_chain else Exclusion.NONE):
-                    if in_chain:
-                        chain.append(reply.id)
-                    oldest_reply = reply
-                # if we hit the min messages limit,
-                #  and we havent found any older replies we need to continue going back on,
-                #  end the history
-                if messages >= MIN_MESSAGES and cmsg.created_at > oldest_reply.created_at:
-                    break
-                handle_message(cmsg)
+                async for cmsg in message.channel.history(before=message, limit=MAX_MESSAGES):
+                    in_chain = cmsg.id in chain
+                    if reply := get_reply(cmsg, Exclusion.CHAIN if in_chain else Exclusion.NONE):
+                        if in_chain:
+                            chain.append(reply.id)
+                        oldest_reply = reply
+                    # if we hit the min messages limit,
+                    #  and we havent found any older replies we need to continue going back on,
+                    #  end the history
+                    if messages >= MIN_MESSAGES and cmsg.created_at > oldest_reply.created_at:
+                        break
+                    handle_message(cmsg)
 
-                # if cmsg.author == discord_client.user:
+                    # if cmsg.author == discord_client.user:
 
-            # make it newest last
-            parts.reverse()
+                # make it newest last
+                parts.reverse()
 
-            print("\nPARTS:")
-            print(parts)
-            print()
+                print("\nPARTS:")
+                print(parts)
+                print()
 
-            response = await generate(message, parts)
-            await message.reply(response.text)
+                response = await generate(message, parts)
+                await message.reply(response.text)
+    except Exception as e:
+        await message.reply(str(e) + str(e.__traceback__))
+        raise e
 
 
 async def generate_loop():
@@ -289,7 +293,7 @@ async def generate(message, parts):
     loop = asyncio.get_running_loop()
     fut = loop.create_future()
     await gen_queue.put((message, parts, fut))
-    return await fut  # wait until looper sets result
+    return fut
 
 
 async def run():
