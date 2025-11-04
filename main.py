@@ -2,6 +2,7 @@ import asyncio
 import enum
 import json
 import os
+import traceback
 
 import aiofiles
 from discord.ext import tasks
@@ -242,7 +243,7 @@ async def on_message(message: discord.Message):
                 response = await generate(message, parts)
                 await message.reply(response.text)
     except Exception as e:
-        await message.reply(str(e) + str(e.__traceback__))
+        await message.reply(f"```\n{e}\n{''.join(traceback.format_exception(e))}\n```")
         raise e
 
 
@@ -292,7 +293,7 @@ async def generate(message, parts):
     loop = asyncio.get_running_loop()
     fut = loop.create_future()
     await gen_queue.put((message, parts, fut))
-    return fut
+    return await fut
 
 
 async def run():
