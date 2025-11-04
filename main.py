@@ -2,7 +2,6 @@ import asyncio
 import enum
 import json
 import os
-from xml.sax.expatreader import ExpatLocator
 
 import aiofiles
 from discord.ext import tasks

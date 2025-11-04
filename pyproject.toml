@@ -2,9 +2,9 @@
 name = "gorkpy"
 version = "0.1.0"
 description = ""
-requires-python = ">=3.13,<4.0"
+requires-python = ">=3.13"
 dependencies = [
-    "discord-py (>=2.5.2,<3.0.0)",
-    "google-genai[aiohttp] (>=1.29.0,<2.0.0)",
-    "aiofiles>=24.1.0,<25.0.0",
+    "discord-py>=2.5.2",
+    "google-genai[aiohttp]>=1.29.0",
+    "aiofiles>=24.1.0",
 ]

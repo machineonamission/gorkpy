@@ -1,6 +1,6 @@
 version = 1
 revision = 3
-requires-python = ">=3.13, <4.0"
+requires-python = ">=3.13"
 
 [[package]]
 name = "aiofiles"
@@ -382,9 +382,9 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiofiles", specifier = ">=24.1.0,<25.0.0" },
-    { name = "discord-py", specifier = ">=2.5.2,<3.0.0" },
-    { name = "google-genai", extras = ["aiohttp"], specifier = ">=1.29.0,<2.0.0" },
+    { name = "aiofiles", specifier = ">=24.1.0" },
+    { name = "discord-py", specifier = ">=2.5.2" },
+    { name = "google-genai", extras = ["aiohttp"], specifier = ">=1.29.0" },
 ]
 
 [[package]]
