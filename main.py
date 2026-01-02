@@ -22,7 +22,7 @@ class Exclusion(enum.IntEnum):
     ALL = 3
 
 
-model_name = 'gemini-2.0-flash'
+# model_name = 'gemini-2.0-flash'
 
 MIN_MESSAGES = 25
 MAX_MESSAGES = 100
@@ -129,6 +129,7 @@ def reply_to_string(ref: discord.Message):
 def get_reply(message: discord.Message, level: Exclusion = Exclusion.NONE):
     if (message.reference
             and message.reference.resolved
+            and isinstance(message.reference.resolved, discord.Message)
             and message.type == discord.MessageType.reply
             and get_exclusion(message.reference.resolved.author) <= level
     ):
@@ -254,7 +255,7 @@ async def generate_loop():
             for i in range(5):
                 try:
                     response = await gemini_client.aio.models.generate_content(
-                        model='gemini-2.0-flash',
+                        model='gemini-2.5-flash-lite',
                         contents=parts,
                         config=genai.types.GenerateContentConfig(
                             system_instruction=prompt,
