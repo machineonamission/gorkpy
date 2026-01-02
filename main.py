@@ -11,6 +11,12 @@ from google.genai.errors import ClientError
 
 with open("geminikey.txt") as f:
     gemini_client = genai.Client(api_key=f.read())
+    m = gemini_client.models.list()
+    for m in gemini_client.models.list():
+        for action in m.supported_actions:
+            if action == "generateContent":
+                print(m.name)
+    print(gemini_client.models.list())
 with open("prompt.txt") as f:
     prompt = f.read()
 
@@ -237,15 +243,19 @@ async def on_message(message: discord.Message):
                 # make it newest last
                 parts.reverse()
 
-                print("\nPARTS:")
-                print(parts)
-                print()
+                # print("\nPARTS:")
+                # print(parts)
+                # print()
 
                 response = await generate(message, parts)
                 await message.reply(response.text)
     except Exception as e:
-        await message.reply(f"```\n{e}\n{''.join(traceback.format_exception(e))}\n```")
-        raise e
+        traceback.print_exception(e)
+        try:
+            await message.reply(f"```\n{e}\n{''.join(traceback.format_exception(e))}\n```"[:2000])
+        except Exception as b:
+            traceback.print_exception(b)
+        # raise e
 
 
 async def generate_loop():
@@ -254,6 +264,8 @@ async def generate_loop():
         try:
             for i in range(5):
                 try:
+                    print(parts)
+                    print("trying to send parts above")
                     response = await gemini_client.aio.models.generate_content(
                         model='gemini-2.5-flash-lite',
                         contents=parts,
@@ -263,6 +275,8 @@ async def generate_loop():
                             thinking_config=genai.types.ThinkingConfig(thinking_budget=0)
                         ),
                     )
+                    print(response)
+                    print("received response above")
                     break
                 except ClientError as e:
                     if e.code == 429:
