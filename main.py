@@ -294,7 +294,8 @@ async def generate_loop():
                                     break
                         else:
                             raise e
-                    raise e
+                    else:
+                        raise e
             else:
                 raise Exception("Failed to get response after 5 attempts")
             fut.set_result(response)  # return to the waiter
