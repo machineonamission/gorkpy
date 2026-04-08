@@ -32,8 +32,8 @@ class Exclusion(enum.IntEnum):
 
 # model_name = 'gemini-2.0-flash'
 
-MIN_MESSAGES = 25
-MAX_MESSAGES = 100
+MIN_MESSAGES = 10
+MAX_MESSAGES = 30
 
 import discord
 
@@ -271,7 +271,7 @@ async def generate_loop():
         message, parts, fut = await gen_queue.get()  # sleep until item arrives
         try:
             response = await client.chat(model="gemma4:31b-cloud", messages=parts, options={
-                "temperature": 1.5, "num_predict": 1000
+                "temperature": 1.7, "num_predict": 1000
             }, stream=False, think=False)
             fut.set_result(response.message.content)  # return to the waiter
         except Exception as e:
