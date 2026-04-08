@@ -5,18 +5,20 @@ import os
 import traceback
 
 import aiofiles
-from discord.ext import tasks
-from google import genai
-from google.genai.errors import ClientError
+import ollama
 
-with open("geminikey.txt") as f:
-    gemini_client = genai.Client(api_key=f.read())
-    m = gemini_client.models.list()
-    for m in gemini_client.models.list():
-        for action in m.supported_actions:
-            if action == "generateContent":
-                print(m.name)
-    print(gemini_client.models.list())
+messages = [
+    {
+        'role': 'user',
+        'content': 'Why is the sky blue?',
+    },
+]
+
+with open("persist/ollamakey.txt") as f:
+    client = ollama.AsyncClient(
+        host="https://ollama.com",
+        headers={'Authorization': 'Bearer ' + f.read().strip()}
+    )
 with open("prompt.txt") as f:
     prompt = f.read()
 
@@ -57,13 +59,13 @@ def get_exclusion(user: discord.User):
 
 async def set_exclusion(user: discord.User, level: Exclusion):
     exclusions[str(user.id)] = level
-    async with aiofiles.open('exclusions.json', mode='w+') as f:
+    async with aiofiles.open('persist/exclusions.json', mode='w+') as f:
         await f.write(json.dumps(exclusions))
 
 
 def init_exclusions():
     if os.path.isfile('exclusions.json'):
-        with open('exclusions.json', mode='r') as f:
+        with open('persist/exclusions.json', mode='r') as f:
             global exclusions
             exclusions = json.load(f)
 
@@ -187,12 +189,11 @@ async def on_message(message: discord.Message):
                 # chain = await crawl_replies(message)
                 # prompt the model to reply
                 parts = [
-                    genai.types.Content(
-                        role='model',
-                        parts=[genai.types.Part.from_text(
-                            text=reply_to_string(message))
-                        ],
-                    )]
+                    {
+                        "role": "assistant",
+                        "content": reply_to_string(message) + "\n\n"
+                    }
+                ]
 
                 messages = 0
 
@@ -209,10 +210,12 @@ async def on_message(message: discord.Message):
                         excl_level = Exclusion.NONE
 
                     if user_excl <= excl_level:
-                        parts.append(genai.types.Content(
-                            role='model' if model else 'user',
-                            parts=[genai.types.Part.from_text(text=message_to_string(cmsg, model, excl_level))],
-                        ))
+                        parts.append(
+                            {
+                                "role": 'assistant' if model else 'user',
+                                "content": message_to_string(cmsg, model, excl_level)
+                            }
+                        )
                         messages += 1
                     else:
                         print(f"Excluded message {cmsg.author} says {cmsg.content}")
@@ -243,12 +246,17 @@ async def on_message(message: discord.Message):
                 # make it newest last
                 parts.reverse()
 
-                # print("\nPARTS:")
-                # print(parts)
-                # print()
+                parts.insert(0, {
+                    "role": "system",
+                    "content": prompt
+                })
+
+                print("\nPARTS:")
+                print(parts)
+                print()
 
                 response = await generate(message, parts)
-                await message.reply(response.text)
+                await message.reply(response)
     except Exception as e:
         traceback.print_exception(e)
         try:
@@ -262,43 +270,10 @@ async def generate_loop():
     while True:
         message, parts, fut = await gen_queue.get()  # sleep until item arrives
         try:
-            for i in range(5):
-                try:
-                    print(parts)
-                    print("trying to send parts above")
-                    response = await gemini_client.aio.models.generate_content(
-                        model='gemini-2.5-flash-lite',
-                        contents=parts,
-                        config=genai.types.GenerateContentConfig(
-                            system_instruction=prompt,
-                            temperature=2,
-                            thinking_config=genai.types.ThinkingConfig(thinking_budget=0)
-                        ),
-                    )
-                    print(response)
-                    print("received response above")
-                    break
-                except ClientError as e:
-                    if e.code == 429:
-                        print(e.details)
-                        for detail in e.details["error"]["details"]:
-                            if detail["@type"] == "type.googleapis.com/google.rpc.RetryInfo":
-                                if detail["retryDelay"][-1] == "s":
-                                    delay = int(detail["retryDelay"][:-1])
-                                    msg, _ = await asyncio.gather(
-                                        message.reply(
-                                            f"**gork is a little overloaded right now. give me {round(delay)} seconds to catch up!**"),
-                                        asyncio.sleep(delay)
-                                    )
-                                    await msg.delete()
-                                    break
-                        else:
-                            raise e
-                    else:
-                        raise e
-            else:
-                raise Exception("Failed to get response after 5 attempts")
-            fut.set_result(response)  # return to the waiter
+            response = await client.chat(model="gemma4:31b-cloud", messages=parts, options={
+                "temperature": 1.5, "num_predict": 1000
+            }, stream=False, think=False)
+            fut.set_result(response.message.content)  # return to the waiter
         except Exception as e:
             fut.set_exception(e)  # propagate errors
         finally:
@@ -314,7 +289,7 @@ async def generate(message, parts):
 
 async def run():
     asyncio.create_task(generate_loop())
-    with open("discordkey.txt") as f:
+    with open("persist/discordkey.txt") as f:
         dtoken = f.read()
     init_exclusions()
     await discord_client.start(token=dtoken)
