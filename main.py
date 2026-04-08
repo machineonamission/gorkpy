@@ -64,7 +64,7 @@ async def set_exclusion(user: discord.User, level: Exclusion):
 
 
 def init_exclusions():
-    if os.path.isfile('exclusions.json'):
+    if os.path.isfile('persist/exclusions.json'):
         with open('persist/exclusions.json', mode='r') as f:
             global exclusions
             exclusions = json.load(f)
@@ -93,7 +93,7 @@ async def exclude(interaction: discord.Interaction):
         await interaction.response.send_message(
             f"""
 By default, gork collects {MIN_MESSAGES}-{MAX_MESSAGES} messages of message context whenever it is invoked (collects more to follow reply chains).
-Keep in mind gork nor gemini never permanently store any user messages.
+Keep in mind gork nor ollama never permanently store any user messages.
 If you would like to opt out of this, there are 4 levels of exclusion:
     **NONE**: Included in automatic channel context **(default)**
     **CHAIN**: Only included in reply chains (this was the old default)
