@@ -271,8 +271,9 @@ async def generate_loop():
         message, parts, fut = await gen_queue.get()  # sleep until item arrives
         try:
             response = await client.chat(model="gemma4:31b-cloud", messages=parts, options={
-                "temperature": 1.7, "num_predict": 1000
+                "temperature": 1.6, "num_predict": 1000
             }, stream=False, think=False)
+            print(response)
             fut.set_result(response.message.content)  # return to the waiter
         except Exception as e:
             fut.set_exception(e)  # propagate errors
