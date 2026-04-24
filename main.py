@@ -7,13 +7,6 @@ import traceback
 import aiofiles
 import ollama
 
-messages = [
-    {
-        'role': 'user',
-        'content': 'Why is the sky blue?',
-    },
-]
-
 with open("persist/ollamakey.txt") as f:
     client = ollama.AsyncClient(
         host="https://ollama.com",
@@ -32,8 +25,8 @@ class Exclusion(enum.IntEnum):
 
 # model_name = 'gemini-2.0-flash'
 
-MIN_MESSAGES = 10
-MAX_MESSAGES = 30
+MIN_MESSAGES = 5
+MAX_MESSAGES = 25
 
 import discord
 
@@ -189,11 +182,13 @@ async def on_message(message: discord.Message):
                 # chain = await crawl_replies(message)
                 # prompt the model to reply
                 parts = [
-                    {
-                        "role": "assistant",
-                        "content": reply_to_string(message) + "\n\n"
-                    }
+                    # {
+                    #     "role": "assistant",
+                    #     "content": reply_to_string(message) + "\n\n"
+                    # }
                 ]
+
+
 
                 messages = 0
 
@@ -248,11 +243,11 @@ async def on_message(message: discord.Message):
 
                 parts.insert(0, {
                     "role": "system",
-                    "content": prompt
+                    "content": f"{prompt}\n\nYou are {reply_to_string(message)}\ndo not generate the 'replying to' string, just your content."
                 })
 
                 print("\nPARTS:")
-                print(parts)
+                print(json.dumps(parts, indent=2))
                 print()
 
                 response = await generate(message, parts)
@@ -270,11 +265,19 @@ async def generate_loop():
     while True:
         message, parts, fut = await gen_queue.get()  # sleep until item arrives
         try:
-            response = await client.chat(model="gemma4:31b-cloud", messages=parts, options={
-                "temperature": 1.6, "num_predict": 1000
-            }, stream=False, think=False)
-            print(response)
-            fut.set_result(response.message.content)  # return to the waiter
+            response = ""
+            async for part in await client.chat(model="gemma4:31b-cloud", messages=parts, stream=True, options={
+            "temperature": 1.5, "num_predict": 500
+            }, think=False):
+                # print(part)
+                # print(part['message'])
+                response += part['message']['content']
+                # print(part)
+                # print(part['message'])
+                # print()
+                print(part['message']['content'], end='', flush=True)
+
+            fut.set_result(response)  # return to the waiter
         except Exception as e:
             fut.set_exception(e)  # propagate errors
         finally:
