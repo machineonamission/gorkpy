@@ -10,7 +10,7 @@ import ollama
 # Native Ollama client. Defaults to the local Ollama server on the LAN
 # (this host at 192.168.0.2). Override with OLLAMA_HOST to point at any Ollama
 # server (ollama.com, another box, ...).
-MODEL = os.environ.get("GORK_MODEL", "qwen3:0.6b")
+MODEL = os.environ.get("GORK_MODEL", "qwen3.5:0.8b")
 client = ollama.AsyncClient(
     host=os.environ.get("OLLAMA_HOST", "http://192.168.0.2:11434")
 )
@@ -309,7 +309,7 @@ async def generate_loop():
                 model=MODEL,
                 messages=parts,
                 stream=True,
-                options={"temperature": 1.5, "num_predict": 500},
+                options={"temperature": 2, "num_predict": 500},
                 think=False,
             ):
                 # print(part)
