@@ -309,7 +309,7 @@ async def generate_loop():
                 model=MODEL,
                 messages=parts,
                 stream=True,
-                options={"temperature": 2, "num_predict": 500},
+                options={"temperature": 1.5, "num_predict": 500},
                 think=False,
             ):
                 # print(part)
